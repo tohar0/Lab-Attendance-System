@@ -1,36 +1,22 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lab Attendance System (研究室在室管理システム)
 
-## Getting Started
+研究室メンバーの在室・不在状況をリアルタイムに記録・集計するWebアプリです。
 
-First, run the development server:
+## 🛠 技術スタック（予定）
+- **Frontend**: Next.js (React), Tailwind CSS
+- **Backend/DB**: Supabase (PostgreSQL)
+- **Hosting**: Vercel
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 📝 基本仕様
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 1. アカウント・権限
+- **管理者アカウント**: データの修正、メンバーの管理、集計データの確認用。
+- **一般メンバーアカウント**: ログイン後、メンバー一覧から自分の名前を選択して打刻。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. 機能要件
+- **リアルタイムダッシュボード**: 現在の在室人数の表示、メンバー20名の状態（在室/不在）の一覧表示。
+- **手動打刻機能**: ボタンタップによる在室・不在の切り替え。
+- **データ集計機能**: 各メンバーの当日の在室時間、週別・月別の累計時間、年間の累積日数の可視化。
+- **日付更新**: 毎日 00:00 を基準にログを切り替え。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📁 フォルダ構造（予定）
