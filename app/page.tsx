@@ -19,6 +19,10 @@ export default function Home() {
   const [isLoginView, setIsLoginView] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  // サイト全体へのアクセスロック用の状態
+  const [isSiteLocked, setIsSiteLocked] = useState(true);
+  const [sitePinInput, setSitePinInput] = useState('');
+  const [sitePinError, setSitePinError] = useState('');
 
   async function fetchMembers() {
     // 💡 学年（grade）順、その中で名前（name）順にソートして取得
@@ -86,6 +90,17 @@ export default function Home() {
     }
   };
 
+  // サイトに入るための暗証番号チェック
+  const handleSitePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sitePinInput === '1234') { // 研究室共通の暗証番号
+      setIsSiteLocked(false);
+      setSitePinError('');
+    } else {
+      setSitePinError('暗証番号が正しくありません');
+    }
+  };
+
   const presentCount = members.filter((m) => m.status === '🟩 在室').length;
   const occupancyRate = members.length > 0 ? Math.round((presentCount / members.length) * 100) : 0;
 
@@ -101,6 +116,40 @@ export default function Home() {
     return <div className="flex justify-center items-center h-screen bg-gray-50 text-gray-500 font-medium">読み込み中...</div>;
   }
 
+  // 読み込み完了後、ロック状態であれば強制的にこの画面を返す
+  if (isSiteLocked) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 max-w-sm w-full">
+          <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            🔒
+          </div>
+          <h2 className="text-xl font-extrabold text-white text-center mb-2">LabConnect Lock</h2>
+          <p className="text-slate-400 text-xs text-center mb-6">研究室共通の暗証番号を入力してください</p>
+          
+          <form onSubmit={handleSitePinSubmit} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                pattern="\d*"
+                maxLength={4}
+                value={sitePinInput}
+                onChange={(e) => setSitePinInput(e.target.value)}
+                placeholder="4桁の数字"
+                className="w-full text-center text-2xl tracking-widest px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
+                autoFocus
+              />
+              {sitePinError && <p className="text-rose-400 text-xs font-bold text-center mt-2">{sitePinError}</p>}
+            </div>
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition-colors shadow-lg text-sm">
+              ロック解除
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+  
   if (isLoginView) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
