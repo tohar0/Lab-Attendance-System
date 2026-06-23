@@ -8,7 +8,7 @@ interface Member {
   name: string;
   role: string;
   status: string;
-  grade: string; // 💡 追加：学年（B4, M1, M2など）
+  grade: string;
 }
 
 export default function Home() {
@@ -44,7 +44,7 @@ export default function Home() {
     // 最初の1回目のデータ取得
     fetchMembers();
 
-    // 💡 Supabaseのリアルタイムイベントを監視する設定
+    // Supabaseのリアルタイムイベントを監視する設定
     const channel = supabase
       .channel('realtime-members') // 任意のチャンネル名
       .on(
@@ -93,7 +93,7 @@ export default function Home() {
   // サイトに入るための暗証番号チェック
   const handleSitePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (sitePinInput === '1234') { // 研究室共通の暗証番号
+    if (sitePinInput === process.env.NEXT_PUBLIC_SITE_PIN) { // 研究室共通の暗証番号
       setIsSiteLocked(false);
       setSitePinError('');
     } else {
