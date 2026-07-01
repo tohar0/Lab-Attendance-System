@@ -130,7 +130,7 @@ async function toggleStatus(id: string, currentStatus: string) {
     }
   };
 
-  const presentCount = members.filter((m) => m.status === '🟩 在室').length;
+  const presentCount = members.filter((m) => m.status === '入室中').length;
   const occupancyRate = members.length > 0 ? Math.round((presentCount / members.length) * 100) : 0;
 
   // 学年の表示順を定義
