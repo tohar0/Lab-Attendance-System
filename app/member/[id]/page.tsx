@@ -351,7 +351,7 @@ export default function MemberDetail() {
         {isEditModalOpen && selectedLog && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl shadow-xl border border-slate-100 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
-              <h3 className="text-lg font-black text-slate-800 mb-4">打刻データの自己修正・削除</h3>
+              <h3 className="text-lg font-black text-slate-800 mb-4">打刻データの修正・削除</h3>
               
               <div className="space-y-4 mb-6">
                 <div>
