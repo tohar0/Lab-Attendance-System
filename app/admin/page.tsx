@@ -128,7 +128,7 @@ export default function AdminPage() {
     );
   }
 
-  // 🖥️ ログイン後のダッシュボード画面
+  // ログイン後のダッシュボード画面
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto space-y-6">
@@ -142,7 +142,7 @@ export default function AdminPage() {
           </Link>
         </div>
 
-        {/* 📋 ログ一覧テーブル */}
+        {/* ログ一覧テーブル */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           {loading ? (
             <div className="text-center py-12 text-slate-400 font-medium text-sm">読み込み中...</div>
@@ -199,7 +199,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* 📝 修正用ポップアップモーダル */}
+        {/* 修正用ポップアップモーダル */}
         {editLog && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 max-w-sm w-full">

@@ -346,7 +346,7 @@ async function toggleStatus(id: string, currentStatus: string) {
             </div>
           </div>
         )}
-        {/* 画面最下部に管理者用の秘密のリンクを配置 */}
+        {/* 画面最下部に管理者用のリンクを配置 */}
         <div className="text-center pt-8 pb-4">
           <Link href="/admin" className="text-[11px] font-bold text-slate-300 hover:text-slate-500 transition-colors underline tracking-wider">
             ⚙️ 管理者画面
