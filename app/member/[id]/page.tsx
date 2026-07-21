@@ -126,32 +126,47 @@ export default function MemberDetail() {
   const uniqueDates = new Set<string>(); // 通算来室日数を数えるための重複なしセット
   let todayTotalMs = 0; // 今日の滞在時間（ミリ秒）
 
-  // ログを入退室のペアで計算するためにループを回す
+// ループの外で現在の入室状態と入室時刻を記録する変数を定義
+  let currentEnterTime: Date | null = null;
+
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
     const logDate = new Date(log.timestamp);
-    
-    // ログの日時も日本時間に変換して比較・カウントする
     const logDateStr = logDate.toLocaleDateString('ja-JP', jstOptions);
+    
     uniqueDates.add(logDateStr);
 
     if (log.action_type === 'ENTER') {
-      const nextLog = logs[i + 1];
-      const enterTime = logDate;
-      let exitTime: Date;
-
-      if (nextLog && nextLog.action_type === 'EXIT') {
-        exitTime = new Date(nextLog.timestamp);
-        i++;
-      } else {
-        const isToday = logDateStr === todayStr;
-        exitTime = isToday ? new Date() : new Date(enterTime.getFullYear(), enterTime.getMonth(), enterTime.getDate(), 23, 59, 59);
+      // すでにENTERがある状態でまたENTERが来たら、前のENTERは前日中（または現在まで）の滞在として一旦区切る
+      if (currentEnterTime !== null) {
+        const prevLogDateStr = currentEnterTime.toLocaleDateString('ja-JP', jstOptions);
+        const exitTime = (prevLogDateStr === todayStr) ? new Date() : new Date(currentEnterTime.getFullYear(), currentEnterTime.getMonth(), currentEnterTime.getDate(), 23, 59, 59);
+        if (prevLogDateStr === todayStr) {
+          todayTotalMs += (exitTime.getTime() - currentEnterTime.getTime());
+        }
       }
-
-      // 日本時間の日付同士で「今日」のログかを判定
-      if (logDateStr === todayStr) {
-        todayTotalMs += (exitTime.getTime() - enterTime.getTime());
+      currentEnterTime = logDate;
+    } 
+    else if (log.action_type === 'EXIT') {
+      // 紐づく入室ログがある場合のみ滞在時間を計算
+      if (currentEnterTime !== null) {
+        const enterTime = currentEnterTime;
+        const exitTime = logDate;
+        
+        if (enterTime.toLocaleDateString('ja-JP', jstOptions) === todayStr) {
+          todayTotalMs += (exitTime.getTime() - enterTime.getTime());
+        }
+        currentEnterTime = null; // ペアが完了したのでリセット
       }
+    }
+  }
+
+  // ループ終了時、ENTERのまま（現在も入室中）であれば現在時刻までの時間を加算
+  if (currentEnterTime !== null) {
+    const enterTime = currentEnterTime;
+    const logDateStr = enterTime.toLocaleDateString('ja-JP', jstOptions);
+    if (logDateStr === todayStr) {
+      todayTotalMs += (new Date().getTime() - enterTime.getTime());
     }
   }
 
@@ -178,7 +193,7 @@ export default function MemberDetail() {
         return;
       }
     } else {
-      // 💡 カラム名 timestamp から日時のベースを作成
+      // カラム名 timestamp から日時のベースを作成
       const logDate = new Date(selectedLog.timestamp);
       const [hours, minutes] = newLogTime.split(':');
       logDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -273,12 +288,12 @@ export default function MemberDetail() {
                         {log.action_type === 'ENTER' ? '入室' : '退室'}
                       </span>
                       <span className="text-slate-500 font-medium">
-                        {/* 💡 DBのカラムに合わせて log.timestamp ではなく log.created_at に変更 */}
+                        {/* DBのカラムに合わせて log.timestamp ではなく log.created_at に変更 */}
                         {new Date(log.created_at || log.timestamp).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>
 
-                    {/* 💡 各ログの右側に個別修正ボタンを設置 */}
+                    {/*  各ログの右側に個別修正ボタンを設置 */}
                     <button
                       onClick={() => {
                         setSelectedLog(log);
