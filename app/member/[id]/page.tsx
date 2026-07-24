@@ -178,7 +178,7 @@ export default function MemberDetail() {
         return;
       }
     } else {
-      // 💡 カラム名 timestamp から日時のベースを作成
+      // カラム名 timestamp から日時のベースを作成
       const logDate = new Date(selectedLog.timestamp);
       const [hours, minutes] = newLogTime.split(':');
       logDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -205,12 +205,15 @@ export default function MemberDetail() {
       .from('attendance_logs')
       .select('*')
       .eq('member_id', member.id)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(1);
 
-    const currentStatus = latestLogs && latestLogs.length > 0
-      ? (latestLogs[0].action_type === 'ENTER' ? '入室中' : '退室中')
-      : '退室中';
+    const latestLog = latestLogs?.[0];
+
+    const currentStatus =latestLog?.action_type === 'ENTER'
+        ? '入室中'
+        : '退室中';
+    
 
     await supabase
       .from('members')
