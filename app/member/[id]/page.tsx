@@ -38,6 +38,7 @@ export default function MemberDetail() {
   const [inputPin, setInputPin] = useState('');
   const [newLogTime, setNewLogTime] = useState(''); // 修正後の時間 (HH:MM)
   const [newLogStatus, setNewLogStatus] = useState<'入室中' | '退室中'>('入室中');
+  const [newLogDate, setNewLogDate] = useState(''); // 修正後の日付 (YYYY-MM-DD)
 
 
   useEffect(() => {
@@ -178,22 +179,22 @@ export default function MemberDetail() {
         return;
       }
     } else {
-      // カラム名 timestamp から日時のベースを作成
-      const logDate = new Date(selectedLog.timestamp);
-      const [hours, minutes] = newLogTime.split(':');
-      logDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    // 選択された「日付」と「時刻」を結合して Date オブジェクトを作成
+    const [year, month, day] = newLogDate.split('-').map(Number);
+    const [hours, minutes] = newLogTime.split(':').map(Number);
+    
+    // JSのDateは month が 0 始まり（0=1月）のため -1 する
+    const updatedDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
-      // action_type ('ENTER' | 'EXIT') に変換して保存
-      const actionType = newLogStatus === '入室中' ? 'ENTER' : 'EXIT';
+    const actionType = newLogStatus === '入室中' ? 'ENTER' : 'EXIT';
 
-      const { error } = await supabase
-        .from('attendance_logs')
-        .update({
-          timestamp: logDate.toISOString(),
-          action_type: actionType
-        })
-        .eq('id', selectedLog.id);
-
+    const { error } = await supabase
+      .from('attendance_logs')
+      .update({
+        timestamp: updatedDate.toISOString(), // 💡 過去の日付を含めた ISO 文字列で更新
+        action_type: actionType
+      })
+      .eq('id', selectedLog.id);
       if (error) {
         alert('ログの修正に失敗しました。');
         return;
@@ -281,11 +282,18 @@ export default function MemberDetail() {
                       </span>
                     </div>
 
-                    {/* 💡 各ログの右側に個別修正ボタンを設置 */}
+                    {/* 各ログの右側に個別修正ボタンを設置 */}
                     <button
                       onClick={() => {
                         setSelectedLog(log);
                         const date = new Date(log.created_at || log.timestamp);
+
+                        // 1. 日付の初期値をセット (YYYY-MM-DD)
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        setNewLogDate(`${year}-${month}-${day}`);
+                        // 2. 時間の初期値をセット (HH:mm)
                         setNewLogTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
                         setNewLogStatus(log.action_type === 'ENTER' ? '入室中' : '退室中');
                         setEditAction('update');
@@ -376,26 +384,40 @@ export default function MemberDetail() {
                 </div>
 
                 {editAction === 'update' && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    {/* 修正後の日付の選択 */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">修正後の時間</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">修正後の日付</label>
                       <input
-                        type="time"
-                        value={newLogTime}
-                        onChange={(e) => setNewLogTime(e.target.value)}
+                        type="date"
+                        value={newLogDate}
+                        onChange={(e) => setNewLogDate(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">状態</label>
-                      <select
-                        value={newLogStatus}
-                        onChange={(e) => setNewLogStatus(e.target.value as '入室中' | '退室中')}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
-                      >
-                        <option value="入室中">入室中</option>
-                        <option value="退室中">退室中</option>
-                      </select>
+
+                    {/* 修正後の時間と状態を横並びに配置 */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">修正後の時間</label>
+                        <input
+                          type="time"
+                          value={newLogTime}
+                          onChange={(e) => setNewLogTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">状態</label>
+                        <select
+                          value={newLogStatus}
+                          onChange={(e) => setNewLogStatus(e.target.value as '入室中' | '退室中')}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="入室中">入室中</option>
+                          <option value="退室中">退室中</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 )}
