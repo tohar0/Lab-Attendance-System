@@ -38,6 +38,8 @@ export default function MemberDetail() {
   const [inputPin, setInputPin] = useState('');
   const [newLogTime, setNewLogTime] = useState(''); // 修正後の時間 (HH:MM)
   const [newLogStatus, setNewLogStatus] = useState<'入室中' | '退室中'>('入室中');
+  const [newLogDate, setNewLogDate] = useState(''); // 修正後の日付 (YYYY-MM-DD)
+  const [weekOffset, setWeekOffset] = useState(0); // 週移動用のオフセット（0: 今週, 1: 1週間前, 2: 2週間前...）
 
 
   useEffect(() => {
@@ -160,6 +162,55 @@ export default function MemberDetail() {
   const todayHours = Math.floor(todayTotalMinutes / 60);
   const todayMins = todayTotalMinutes % 60;
 
+  // ==========================================
+  // 📊 1週間ごとのヒストグラム用集計ロジック
+  // ==========================================
+  
+  // 1. weekOffset に応じた7日間の日付枠（YYYY/MM/DD）を作成
+  const last7Days: { dateStr: string; label: string; ms: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    // 💡 (weekOffset * 7) 日分だけ過去にずらして7日間を計算
+    d.setDate(d.getDate() - i - (weekOffset * 7));
+    const dateStr = d.toLocaleDateString('ja-JP', jstOptions);
+    const label = `${d.getMonth() + 1}/${d.getDate()}`;
+    last7Days.push({ dateStr, label, ms: 0 });
+  }
+
+  // 2. ログをスキャンして指定期間の日に滞在時間を割り当てる
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    if (log.action_type === 'ENTER') {
+      const nextLog = logs[i + 1];
+      const enterTime = new Date(log.timestamp);
+      let exitTime: Date;
+
+      if (nextLog && nextLog.action_type === 'EXIT') {
+        exitTime = new Date(nextLog.timestamp);
+      } else {
+        const logDateStr = enterTime.toLocaleDateString('ja-JP', jstOptions);
+        exitTime = (logDateStr === todayStr) 
+          ? new Date() 
+          : new Date(enterTime.getFullYear(), enterTime.getMonth(), enterTime.getDate(), 23, 59, 59);
+      }
+
+      const enterDateStr = enterTime.toLocaleDateString('ja-JP', jstOptions);
+      const dayItem = last7Days.find(d => d.dateStr === enterDateStr);
+      if (dayItem) {
+        dayItem.ms += Math.max(0, exitTime.getTime() - enterTime.getTime());
+      }
+    }
+  }
+
+  // 3. 週の合計時間の計算
+  const weekTotalMs = last7Days.reduce((acc, cur) => acc + cur.ms, 0);
+  const weekTotalMinutes = Math.floor(weekTotalMs / (1000 * 60));
+  const weekHours = Math.floor(weekTotalMinutes / 60);
+  const weekMins = weekTotalMinutes % 60;
+
+  // 4. 棒グラフの高さ基準（最高滞在時間を100%基準にする）
+  const maxMs = Math.max(...last7Days.map(d => d.ms), 1000 * 60 * 60 * 4);
+
   // === ログ修正・削除の実行関数 ===
   const handleSelfCorrection = async () => {
     if (inputPin !== member?.pin) {
@@ -178,22 +229,22 @@ export default function MemberDetail() {
         return;
       }
     } else {
-      // カラム名 timestamp から日時のベースを作成
-      const logDate = new Date(selectedLog.timestamp);
-      const [hours, minutes] = newLogTime.split(':');
-      logDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    // 選択された「日付」と「時刻」を結合して Date オブジェクトを作成
+    const [year, month, day] = newLogDate.split('-').map(Number);
+    const [hours, minutes] = newLogTime.split(':').map(Number);
+    
+    // JSのDateは month が 0 始まり（0=1月）のため -1 する
+    const updatedDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
-      // action_type ('ENTER' | 'EXIT') に変換して保存
-      const actionType = newLogStatus === '入室中' ? 'ENTER' : 'EXIT';
+    const actionType = newLogStatus === '入室中' ? 'ENTER' : 'EXIT';
 
-      const { error } = await supabase
-        .from('attendance_logs')
-        .update({
-          timestamp: logDate.toISOString(),
-          action_type: actionType
-        })
-        .eq('id', selectedLog.id);
-
+    const { error } = await supabase
+      .from('attendance_logs')
+      .update({
+        timestamp: updatedDate.toISOString(), // 💡 過去の日付を含めた ISO 文字列で更新
+        action_type: actionType
+      })
+      .eq('id', selectedLog.id);
       if (error) {
         alert('ログの修正に失敗しました。');
         return;
@@ -262,6 +313,84 @@ export default function MemberDetail() {
             </div>
           </div>
 
+          {/* 📊 週別ヒストグラム & 週合計カード */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-sm font-black text-slate-700">📈 在室推移</h2>
+                <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                  {last7Days[0].label} 〜 {last7Days[6].label}
+                </p>
+              </div>
+
+              {/* 💡 週切り替えボタン */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setWeekOffset(prev => prev + 1)}
+                  className="px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-white rounded-lg transition-colors"
+                >
+                  ← 前の週
+                </button>
+                {weekOffset > 0 && (
+                  <button
+                    onClick={() => setWeekOffset(0)}
+                    className="px-2 py-1 text-[10px] font-bold text-blue-600 hover:bg-white rounded-lg transition-colors"
+                  >
+                    今週
+                  </button>
+                )}
+                <button
+                  onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
+                  disabled={weekOffset === 0}
+                  className="px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-white rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  次の週 →
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-baseline border-t border-slate-50 pt-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">週の合計滞在時間</span>
+              <span className="text-sm font-black text-blue-600">{weekHours}時間 {weekMins}分</span>
+            </div>
+
+            {/* 棒グラフ本体（既存コード） */}
+            <div className="pt-6 pb-2 flex items-end justify-between gap-2 h-44 border-b border-slate-100">
+              {last7Days.map((day, idx) => {
+                const hours = (day.ms / (1000 * 60 * 60)).toFixed(1);
+                const heightPercent = Math.min(100, Math.round((day.ms / maxMs) * 100));
+                const isToday = day.dateStr === todayStr;
+
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group relative">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-slate-800 text-white text-[10px] font-bold py-1 px-2 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                      {hours} 時間
+                    </div>
+
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {day.ms > 0 ? `${hours}h` : ''}
+                    </span>
+
+                    <div className="w-full bg-slate-100 rounded-t-lg overflow-hidden h-full flex items-end">
+                      <div
+                        style={{ height: `${heightPercent}%` }}
+                        className={`w-full transition-all duration-500 rounded-t-lg ${
+                          isToday 
+                            ? 'bg-blue-600' 
+                            : day.ms > 0 ? 'bg-blue-400/80 hover:bg-blue-500' : 'bg-slate-200'
+                        }`}
+                      />
+                    </div>
+
+                    <span className={`text-[10px] font-bold ${isToday ? 'text-blue-600 font-black' : 'text-slate-400'}`}>
+                      {day.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* 最近の履歴一覧 */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
             <h2 className="text-sm font-black text-slate-700 mb-4">⏱️ 最近の打刻ログ（最新5件）</h2>
@@ -281,11 +410,18 @@ export default function MemberDetail() {
                       </span>
                     </div>
 
-                    {/* 💡 各ログの右側に個別修正ボタンを設置 */}
+                    {/* 各ログの右側に個別修正ボタンを設置 */}
                     <button
                       onClick={() => {
                         setSelectedLog(log);
                         const date = new Date(log.created_at || log.timestamp);
+
+                        // 1. 日付の初期値をセット (YYYY-MM-DD)
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        setNewLogDate(`${year}-${month}-${day}`);
+                        // 2. 時間の初期値をセット (HH:mm)
                         setNewLogTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
                         setNewLogStatus(log.action_type === 'ENTER' ? '入室中' : '退室中');
                         setEditAction('update');
@@ -376,26 +512,40 @@ export default function MemberDetail() {
                 </div>
 
                 {editAction === 'update' && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    {/* 修正後の日付の選択 */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">修正後の時間</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">修正後の日付</label>
                       <input
-                        type="time"
-                        value={newLogTime}
-                        onChange={(e) => setNewLogTime(e.target.value)}
+                        type="date"
+                        value={newLogDate}
+                        onChange={(e) => setNewLogDate(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">状態</label>
-                      <select
-                        value={newLogStatus}
-                        onChange={(e) => setNewLogStatus(e.target.value as '入室中' | '退室中')}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
-                      >
-                        <option value="入室中">入室中</option>
-                        <option value="退室中">退室中</option>
-                      </select>
+
+                    {/* 修正後の時間と状態を横並びに配置 */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">修正後の時間</label>
+                        <input
+                          type="time"
+                          value={newLogTime}
+                          onChange={(e) => setNewLogTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">状態</label>
+                        <select
+                          value={newLogStatus}
+                          onChange={(e) => setNewLogStatus(e.target.value as '入室中' | '退室中')}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="入室中">入室中</option>
+                          <option value="退室中">退室中</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 )}
